@@ -16,6 +16,7 @@
 
 using namespace std;
 namespace po = boost::program_options;
+namespace ublas = boost::numeric::ublas;
 
 double fraction;	//the fraction of testing examples
 string mode;		//the mode to choose pair of testing examples

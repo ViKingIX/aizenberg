@@ -8,6 +8,8 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <ctime>
+#include <cstdlib>
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -21,19 +23,16 @@ namespace bt = boost::posix_time;
 
 Theta::Theta(unsigned Ns, unsigned Na, unsigned Nt, unsigned Nslot, unsigned l) : Ns(Ns), Na(Na), Nt(Nt), Nslot(Nslot), l(l)/*{{{*/
 {
-	Ca.resize(l);
-	C.resize(l);
+	Ca.resize(Na);
+	C.resize(Nt);
 	Pa.resize(Na);
-#pragma omp parallel for
 	for (int i = 0;i < Na;i ++)
 		Pa[i].resize(l);
 	P.resize(Nt);
-#pragma omp parallel for
 	for (int i = 0;i < Nt;i ++)
 		P[i].resize(l);
 	V.resize(Ns);
 	Vt.resize(Ns);
-#pragma omp parallel for
 	for (int i = 0;i < Ns;i ++)
 	{
 		V[i].resize(l);
@@ -44,23 +43,24 @@ Theta::Theta(unsigned Ns, unsigned Na, unsigned Nt, unsigned Nslot, unsigned l) 
 }/*}}}*/
 void Theta::init()/*{{{*/
 {
+	srand(time(NULL));
 #pragma omp parallel for
 	for (int i = 0;i < Nt;i ++)
 	{
 		C[i] = 2 * (double)rand() / RAND_MAX - 1;
-		for (int j = 0;j < P[i].size();j ++)
+		for (int j = 0;j < l;j ++)
 			P[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 	}
 #pragma omp parallel for
 	for (int i = 0;i < Na;i ++)
 	{
 		Ca[i] = 2 * (double)rand() / RAND_MAX - 1;
-		for (int j = 0;j < Pa[i].size();j ++)
+		for (int j = 0;j < l;j ++)
 			Pa[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 	}
 #pragma omp parallel for
 	for (int i = 0;i < Ns;i ++)
-		for (int j = 0;j < V[i].size();j ++)
+		for (int j = 0;j < l;j ++)
 		{
 			V[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 			for (int k = 0;k < Nslot;k ++)

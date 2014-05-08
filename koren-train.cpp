@@ -70,15 +70,14 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 		for (int i = 0;i < D.size();i ++)
 			random_s[i] = i;
 	}
+
 	random_shuffle(random_s.begin(), random_s.end());
-	for (int x = 0;x < random_s.size();x ++)
+	for (const int &s : random_s)
 	{
-		unsigned s = random_s[x];
 		vector<example> Ps = D.find(s)->second, Pst, Pstw;
 
-		for (auto iti = Ps.cbegin();iti != Ps.cend();iti ++)
+		for (const auto &exi : Ps)
 		{
-			const example &exi = *iti;
 			uvec qsum = zvec(l);
 			map<unsigned, double> dCa, dC;
 			map<unsigned, uvec> dPa, dP;
@@ -90,6 +89,7 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 					it = Pstw.erase(it);
 				else
 				{
+#if 0
 					if (!dCa.count(it->art))
 							dCa[it->art] = 0;
 					if (!dC.count(it->tra))
@@ -98,13 +98,14 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 						dPa[it->art] = zvec(l);
 					if (!dP.count(it->tra))
 						dP[it->tra] = zvec(l);
+#endif
 					qsum += Pa[exi.art] + P[exi.tra];
 					it ++;
 				}
 
 			double coeff = 0;
-			if (Pstw.size())
-				coeff = 1 / sqrt(Pstw.size());
+			if (Pstw.size() > 0)
+				coeff = 1. / Pstw.size();
 			unsigned ai = exi.art, i = exi.tra;
 			double bi = Ca[ai] + C[i];
 			uvec qi = Pa[ai] + P[i];
@@ -122,9 +123,9 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 			dCa[ai] = dC[i] = eta;
 			dPa[ai] = dP[i] = eta * vterm;
 			dV = dVt = eta * qi;
-			for (auto it = Pstw.cbegin();it != Pstw.cend();it ++)
+			for (const auto &exj : Pstw)
 			{
-				unsigned aj = it->art, j = it->tra;
+				unsigned aj = exj.art, j = exj.tra;
 				if (j == i)
 				{
 					dPa[aj] += eta * coeff * qi;
@@ -137,11 +138,13 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 			{
 				//boost::timer::auto_cpu_timer ct("brute force costs %ws\n");
 				vector<example> Pst;
-				for (auto it = Ps.cbegin();it != Ps.cend();it ++)
+				map<int, double> expr;
+				double denom = 0;
+				for (const auto &exj : Ps)
 				{
-					const example &exj = *it;
 					if (exj.t % 86400 / 60 == exi.t % 86400 / 60)
 					{
+#if 0
 						if (!dCa.count(exj.art))
 							dCa[exj.art] = 0;
 						if (!dC.count(exj.tra))
@@ -150,55 +153,131 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 							dPa[exj.art] = zvec(l);
 						if (!dP.count(exj.tra))
 							dP[exj.tra] = zvec(l);
+#endif
 						Pst.push_back(exj);
+						unsigned aj = exj.art, j = exj.tra;
+						double bj = Ca[aj] + C[j];
+						uvec qj = Pa[aj] + P[j];
+						if (expr.count(j))
+						{
+							denom += expr[j];
+							continue;
+						}
+						double exprj = exp(bj + inner_prod(qj, vterm));
+						//test exprj/*{{{*/
+						bool flag = false;
+						if (std::isnan(exprj))
+						{
+							cerr << "NaN exprj founded!" << endl;
+							flag = true;
+						}
+						if (std::isinf(exprj))
+						{
+							cerr << "inf exprj!\n";
+							flag = true;
+						}
+						if (exprj == 0)
+						{
+							cerr << "0 exprj\n";
+							flag = true;
+						}
+						if (flag)
+						{
+							cerr << "bj: " << bj << endl;
+							cerr << "qj: " << qj << endl;
+							cerr << "vterm: " << vterm << endl;
+							continue;
+						}/*}}}*/
+						expr[j] = exprj;
+						denom += exprj;
 					}
 				}
 
-				map<int, double> expr;
-				double denom = 0;
-				for (auto itj = Pst.cbegin();itj != Pst.cend();itj ++)
+				for (const auto &exj : Pst)
 				{
-					unsigned aj = itj->art, j = itj->tra;
-					double bj = Ca[aj] + C[j];
-					uvec qj = Pa[aj] + P[j];
-					if (expr.count(j))
-					{
-						denom += expr[j];
-						continue;
-					}
-					double exprj = exp(bj + inner_prod(qj, vterm));
-					//test exprj/*{{{*/
-					bool flag = false;
-					if (std::isnan(exprj))
-					{
-						cerr << "NaN exprj founded!" << endl;
-						flag = true;
-					}
-					if (std::isinf(exprj))
-					{
-						cerr << "inf exprj!\n";
-						flag = true;
-					}
-					if (exprj == 0)
-					{
-						cerr << "0 exprj\n";
-						flag = true;
-					}
-					if (flag)
-					{
-						cerr << "bj: " << bj << endl;
-						cerr << "qj: " << qj << endl;
-						cerr << "vterm: " << vterm << endl;
-						continue;
-					}/*}}}*/
-					expr[j] = exprj;
-					denom += exprj;
-				}
-				for (auto itj = Pst.cbegin();itj != Pst.cend();itj ++)
-				{
-					unsigned aj = itj->art, j = itj->tra;
+					unsigned aj = exj.art, j = exj.tra;
 					uvec qj = Pa[aj] + P[j];
 					double coeff2 = -eta * expr[j] / denom;
+					if (std::isnan(coeff2))/*{{{*/
+					{
+						cerr << "NaN coeff2!\n";
+						cerr << "eta: " << eta << endl;
+						cerr << "exprj: " << expr[j] << endl;
+						cerr << "denom: " << denom << endl;
+						continue;
+					}/*}}}*/
+					if (j == i)
+					{
+						dCa[aj] += coeff2;
+						dC[j] += coeff2;
+						dPa[aj] += coeff2 * vterm;
+						dP[j] += coeff2 * vterm;
+					}
+					dV += coeff2 * qj;
+					dVt += coeff2 * qj;
+					for (const auto &exk : Pstw)
+					{
+						unsigned k = exk.tra, ak = exk.art;
+						if (k == i)
+						{
+							dPa[ak] += coeff2 * coeff * qj;
+							dP[k] += coeff2 * coeff * qj;
+						}
+					}
+				}
+			}/*}}}*/
+			else if (mode == "imp")/*{{{*/
+			{
+				boost::timer::auto_cpu_timer ct("importance sampling costs %ws\n");
+#if 1
+				const size_t Jmaxlen = 100;
+				vector<unsigned> &Js = J[s];
+				double Jsum = 0, denom = 0;
+				map<unsigned, double> expr;
+#if 0
+				vector<double> denomv(Js.size()), exprv(Js.size());
+#pragma omp parallel for
+				for (int x = 0;x < Js.size();x ++)
+				{
+					unsigned j = Js[x], aj = a.find(x)->second;
+					double bj = Ca[aj] + C[j];
+					uvec qj = Pa[aj] + P[j];
+					double exprj = bj + inner_prod(qj, vterm);
+					denomv[x] = exprj * S.size() / count(S.begin(), S.end(), j);
+					expr[j] = exprj;
+					Jsum[x] = exprj;
+				}
+
+#else
+				for (auto it = Js.begin();it != Js.end();it ++)
+				{
+					unsigned aj = a.find(*it)->second, j = *it;
+					double bj = Ca[aj] + C[j];
+					uvec qj = Pa[aj] + P[j];
+					if (!expr.count(j))
+						expr[j] = bj + inner_prod(qj, vterm);
+					denom += expr[j] * S.size() / count(S.begin(), S.end(), j);
+					Jsum += expr[j];
+				}
+#endif
+				double expri = exp(bi + inner_prod(qi, vterm));
+				while (Jsum <= expri && Js.size() < Jmaxlen)
+				{
+					unsigned x = rand() % S.size();
+					Js.push_back(S[x]);
+					unsigned j = S[x], aj = a.find(j)->second;
+					double bj = Ca[aj] + C[j];
+					uvec qj = Pa[aj] + P[j];
+					if (!expr.count(j))
+						expr[j] = bj + inner_prod(qj, vterm);
+					denom += expr[j] * S.size() / count(S.begin(), S.end(), j);
+					Jsum += expr[j];
+				}
+				for (auto itj = Js.cbegin();itj != Js.cend();itj ++)
+				{
+					unsigned aj = a.find(*itj)->second, j = *itj;
+					uvec qj = Pa[aj] + P[j];
+					double coeff2 = -eta * expr[j] * S.size() / count(S.cbegin(), S.cend(), j) / denom;
 					if (std::isnan(coeff2))/*{{{*/
 					{
 						cerr << "NaN coeff2!\n";
@@ -219,6 +298,224 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 					for (auto itk = Pstw.begin();itk != Pstw.end();itk ++)
 					{
 						unsigned k = itk->tra, ak = itk->art;
+						if (k == i)
+						{
+							dPa[ak] += coeff2 * coeff * qj;
+							dP[k] += coeff2 * coeff * qj;
+						}
+					}
+				}
+#endif
+			}/*}}}*/
+
+			//update/*{{{*/
+			for (auto it = dCa.cbegin();it != dCa.cend();it ++)
+			{
+#ifdef DEBUG
+				cout << "dCa[" << it->first << "] = " << it->second << endl;
+#endif
+				Ca[it->first] = clip(Ca[it->first] + it->second - eta * 2 * lambda * Ca[it->first], -1, 1);
+			}
+			for (auto it = dC.cbegin();it != dC.cend();it ++)
+			{
+#ifdef DEBUG
+				cout << "dC[" << it->first << "] = " << it->second << endl;
+#endif
+				C[it->first] = clip(C[it->first] + it->second - eta * 2 * lambda * C[it->first], -1, 1);
+			}
+			for (auto it = dPa.cbegin();it != dPa.cend();it ++)
+			{
+#ifdef DEBUG
+				cout << "dPa[" << it->first << "] = " << it->second << endl;
+#endif
+				Pa[it->first] = vclip(Pa[it->first] + it->second - eta * 2 * lambda * Pa[it->first], -1, 1);
+			}
+			for (auto it = dP.cbegin();it != dP.cend();it ++)
+			{
+#ifdef DEBUG
+				cout << "dP[" << it->first << "] = " << it->second << endl;
+#endif
+				P[it->first] = vclip(P[it->first] + it->second - eta * 2 * lambda * P[it->first], -1, 1);
+			}
+#ifdef DEBUG
+			cout << "dV[" << s << "] = " << dV << endl;
+#endif
+			V[s] = vclip(V[s] + dV - eta * 2 * lambda * V[s], -1, 1);
+#ifdef DEBUG
+			cout << "dVt[" << s << "][" << slot << "] = " << dVt << endl;
+			cout << endl;
+#endif
+			Vt[s][slot] = vclip(Vt[s][slot] + dVt - eta * 2 * lambda * Vt[s][slot], -1, 1);
+			/*}}}*/
+			
+			Pstw.push_back(exi);
+		}
+	}
+	return converge;
+}/*}}}*/
+
+bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned> &a, const vector<unsigned> &S, double eta, string mode, vector<vector<unsigned> > &J, Theta &theta)/*{{{*/
+{
+	bool converge = false;
+	static vector<unsigned> random_s;
+	uvec &Ca = theta.Ca, &C = theta.C;
+	vector<uvec> &Pa = theta.Pa, &P = theta.P, &V = theta.V;
+	vector<vector<uvec> > &Vt = theta.Vt;
+	
+	if (!random_s.size())
+	{
+		random_s.resize(D.size());
+		for (int i = 0;i < D.size();i ++)
+			random_s[i] = i;
+	}
+
+	random_shuffle(random_s.begin(), random_s.end());
+	for (const int &s : random_s)
+	{
+		vector<example> Ps = D.find(s)->second, Pst, Pstw;
+
+		for (const auto &exi : Ps)
+		{
+			uvec qsum = zvec(l);
+			map<unsigned, double> dCa, dC;
+			map<unsigned, uvec> dPa, dP;
+			uvec dV, dVt;
+
+			//remove j not in (t - w, t] and calculate qsum
+			for (auto it = Pstw.begin();it != Pstw.end();)
+				if (it->t < exi.t && exi.t - it->t >= w)
+					it = Pstw.erase(it);
+				else
+				{
+#if 0
+					if (!dCa.count(it->art))
+							dCa[it->art] = 0;
+					if (!dC.count(it->tra))
+							dC[it->tra] = 0;
+					if (!dPa.count(it->art))
+						dPa[it->art] = zvec(l);
+					if (!dP.count(it->tra))
+						dP[it->tra] = zvec(l);
+#endif
+					qsum += Pa[exi.art] + P[exi.tra];
+					it ++;
+				}
+
+			double coeff = 0;
+			if (Pstw.size() > 0)
+				coeff = 1. / Pstw.size();
+			unsigned ai = exi.art, i = exi.tra;
+			double bi = Ca[ai] + C[i];
+			uvec qi = Pa[ai] + P[i];
+			unsigned slot = exi.t % SEC_PER_DAY / SEC_PER_HOUR / Nslot;
+			uvec vterm = V[s] + Vt[s][slot] + coeff * qsum;
+#ifdef DEBUG
+			cout << "bi: " << bi << endl;
+			cout << "qi: " << qi << endl;
+			cout << "vs: " << V[s] << endl;
+			cout << "vs_t: " << Vt[s][slot] << endl;
+			cout << "qsum: " << coeff * qsum << endl;
+			cout << "vterm: " << vterm << endl;
+#endif
+
+			dCa[ai] = dC[i] = eta;
+			dPa[ai] = dP[i] = eta * vterm;
+			dV = dVt = eta * qi;
+			for (const auto &exj : Pstw)
+			{
+				unsigned aj = exj.art, j = exj.tra;
+				if (j == i)
+				{
+					dPa[aj] += eta * coeff * qi;
+					dP[j] += eta * coeff * qi;
+				}
+			}
+
+			//rsj;t part
+			if (mode == "brute")/*{{{*/
+			{
+				//boost::timer::auto_cpu_timer ct("brute force costs %ws\n");
+				vector<example> Pst;
+				map<int, double> expr;
+				double denom = 0;
+				for (const auto &exj : Ps)
+				{
+					if (exj.t % 86400 / 60 == exi.t % 86400 / 60)
+					{
+#if 0
+						if (!dCa.count(exj.art))
+							dCa[exj.art] = 0;
+						if (!dC.count(exj.tra))
+							dC[exj.tra] = 0;
+						if (!dPa.count(exj.art))
+							dPa[exj.art] = zvec(l);
+						if (!dP.count(exj.tra))
+							dP[exj.tra] = zvec(l);
+#endif
+						Pst.push_back(exj);
+						unsigned aj = exj.art, j = exj.tra;
+						double bj = Ca[aj] + C[j];
+						uvec qj = Pa[aj] + P[j];
+						if (expr.count(j))
+						{
+							denom += expr[j];
+							continue;
+						}
+						double exprj = exp(bj + inner_prod(qj, vterm));
+						//test exprj/*{{{*/
+						bool flag = false;
+						if (std::isnan(exprj))
+						{
+							cerr << "NaN exprj founded!" << endl;
+							flag = true;
+						}
+						if (std::isinf(exprj))
+						{
+							cerr << "inf exprj!\n";
+							flag = true;
+						}
+						if (exprj == 0)
+						{
+							cerr << "0 exprj\n";
+							flag = true;
+						}
+						if (flag)
+						{
+							cerr << "bj: " << bj << endl;
+							cerr << "qj: " << qj << endl;
+							cerr << "vterm: " << vterm << endl;
+							continue;
+						}/*}}}*/
+						expr[j] = exprj;
+						denom += exprj;
+					}
+				}
+
+				for (const auto &exj : Pst)
+				{
+					unsigned aj = exj.art, j = exj.tra;
+					uvec qj = Pa[aj] + P[j];
+					double coeff2 = -eta * expr[j] / denom;
+					if (std::isnan(coeff2))/*{{{*/
+					{
+						cerr << "NaN coeff2!\n";
+						cerr << "eta: " << eta << endl;
+						cerr << "exprj: " << expr[j] << endl;
+						cerr << "denom: " << denom << endl;
+						continue;
+					}/*}}}*/
+					if (j == i)
+					{
+						dCa[aj] += coeff2;
+						dC[j] += coeff2;
+						dPa[aj] += coeff2 * vterm;
+						dP[j] += coeff2 * vterm;
+					}
+					dV += coeff2 * qj;
+					dVt += coeff2 * qj;
+					for (const auto &exk : Pstw)
+					{
+						unsigned k = exk.tra, ak = exk.art;
 						if (k == i)
 						{
 							dPa[ak] += coeff2 * coeff * qj;
@@ -409,6 +706,7 @@ bool init_theta(uvec &Ca, uvec &C, vector<uvec> &Pa, vector<uvec> &P, vector<uve
 	return true;
 }/*}}}*/
 
+#if 0
 bool save_model(const char *ofn, const uvec &Ca, const uvec &C, const vector<uvec> &Pa, const vector<uvec> &P, const vector<uvec> &V, const vector<vector<uvec> > &Vt)/*{{{*/
 {
 	ofstream ofs(ofn);
@@ -418,6 +716,7 @@ bool save_model(const char *ofn, const uvec &Ca, const uvec &C, const vector<uve
 	ofs << Ca.size() << endl;
 	ofs << C.size() << endl;
 	ofs << Vt[0].size() << endl;
+	ofs << l << endl;
 	ofs << Ca << endl;
 	ofs << C << endl;
 	for (int i = 0;i < Pa.size();i ++)
@@ -439,8 +738,8 @@ Theta load_model(const char *ifn)/*{{{*/
 	if (!ifs)
 		throw runtime_error("Could not open modelfile\n");
 	size_t Ns, Na, Nt, Nslot;
-	ifs >> Ns >> Na >> Nt >> Nslot;
-	Theta theta(Ns, Na, Nt, Nslot);
+	ifs >> Ns >> Na >> Nt >> Nslot >> l;
+	Theta theta(Ns, Na, Nt, Nslot, l);
 	ifs >> theta.Ca >> theta.C;
 	for (int i = 0;i < Na;i ++)
 		ifs >> theta.Pa[i];
@@ -453,6 +752,7 @@ Theta load_model(const char *ifn)/*{{{*/
 			ifs >> theta.Vt[i][j];
 	return theta;
 }/*}}}*/
+#endif
 
 int main(int argc, const char *argv[])
 {
@@ -501,7 +801,9 @@ int main(int argc, const char *argv[])
 	map<unsigned, unsigned> a;
 	vector<unsigned> S;
 	map<unsigned, vector<example> > D;
-	load_tsv(vm["logfile"].as<string>().c_str(), uids, artids, traids, a, S, D);
+	unsigned Ns, Na, Nt;
+	load_tsv(vm["logfile"].as<string>().c_str(), uids, artids, traids, a, S, D, Ns, Na, Nt);
+	cout << "Ns = " << Ns << ", Na = " << Na << ", Nt = " << Nt << endl;
 	map<unsigned, vector<example> > Dtr;
 	for (auto const &it : D)
 	{
@@ -513,16 +815,15 @@ int main(int argc, const char *argv[])
 /*}}}*/
 
 	//Initialize parameters/*{{{*/
-	unsigned Ns = Dtr.size();
-	unsigned Na = artids.size();
-	unsigned Nt = traids.size();
-	srand(time(NULL));
-	cout << "Ns = " << Ns << ", Na = " << Na << ", Nt = " << Nt << endl;
+	vector<vector<unsigned> > J(Ns);
+#if 0
 	uvec Ca(Na), C(Nt);
 	vector<uvec> Pa(Na, uvec(l)), P(Nt, uvec(l)), V(Ns, uvec(l));
 	vector<vector<uvec> > Vt(Ns, vector<uvec>(Nslot, uvec(l)));
-	vector<vector<unsigned> > J(Ns);
 	init_theta(Ca, C, Pa, P, V, Vt, Na, Nt, Ns);
+#endif
+	Theta theta(Ns, Na, Nt, Nslot, l);
+	theta.init();
 /*}}}*/
 
 	//print_theta(D, Ca, C, Pa, P, V, Vt);
@@ -533,11 +834,13 @@ int main(int argc, const char *argv[])
 		boost::timer::auto_cpu_timer ct("iteration takes %ws\n");
 		double eta = 5e-3 / (k + 1);
 
-		sgd(Dtr, a, S, Ca, C, Pa, P, V, Vt, J, eta, mode);
+		sgd(Dtr, a, S, eta, mode, J, theta);
+		//sgd(Dtr, a, S, Ca, C, Pa, P, V, Vt, J, eta, mode);
 	}
 /*}}}*/
 
 	if (vm.count("modelfile"))
-		save_model(vm["modelfile"].as<string>().c_str(), Ca, C, Pa, P, V, Vt);
+		theta.saves(vm["modelfile"].as<string>().c_str());
+		//save_model(vm["modelfile"].as<string>().c_str(), Ca, C, Pa, P, V, Vt);
 	return 0;
 }
