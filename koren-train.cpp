@@ -403,7 +403,7 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 
 			double coeff = 0;
 			if (Pstw.size() > 0)
-				coeff = 1. / Pstw.size();
+				coeff = 1. / sqrt(Pstw.size());
 			unsigned ai = exi.art, i = exi.tra;
 			double bi = Ca[ai] + C[i];
 			uvec qi = Pa[ai] + P[i];
@@ -434,13 +434,15 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 			//rsj;t part
 			if (mode == "brute")/*{{{*/
 			{
-				//boost::timer::auto_cpu_timer ct("brute force costs %ws\n");
+#ifdef DEBUG
+				boost::timer::auto_cpu_timer ct("brute force costs %ws\n");
+#endif
 				vector<example> Pst;
 				map<int, double> expr;
 				double denom = 0;
 				for (const auto &exj : Ps)
 				{
-					if (exj.t % 86400 / 60 == exi.t % 86400 / 60)
+					if (cmp_ts(exj.t, exi.t))
 					{
 #if 0
 						if (!dCa.count(exj.art))
@@ -527,7 +529,6 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 			else if (mode == "imp")/*{{{*/
 			{
 				boost::timer::auto_cpu_timer ct("importance sampling costs %ws\n");
-#if 1
 				const size_t Jmaxlen = 100;
 				vector<unsigned> &Js = J[s];
 				double Jsum = 0, denom = 0;
@@ -603,7 +604,6 @@ bool sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 						}
 					}
 				}
-#endif
 			}/*}}}*/
 
 			//update/*{{{*/
@@ -796,7 +796,7 @@ int main(int argc, const char *argv[])
 	}
 /*}}}*/
 
-	//Load input/*{{{*/
+	//Load input
 	map<string, unsigned> uids, artids, traids;
 	map<unsigned, unsigned> a;
 	vector<unsigned> S;
@@ -812,35 +812,25 @@ int main(int argc, const char *argv[])
 		size_t len = std::ceil(Ps.size() * fraction);
 		Dtr[s] = vector<example>(Ps.begin(), Ps.begin() + len);
 	}
-/*}}}*/
 
-	//Initialize parameters/*{{{*/
+
+	//Initialize parameters
 	vector<vector<unsigned> > J(Ns);
-#if 0
-	uvec Ca(Na), C(Nt);
-	vector<uvec> Pa(Na, uvec(l)), P(Nt, uvec(l)), V(Ns, uvec(l));
-	vector<vector<uvec> > Vt(Ns, vector<uvec>(Nslot, uvec(l)));
-	init_theta(Ca, C, Pa, P, V, Vt, Na, Nt, Ns);
-#endif
 	Theta theta(Ns, Na, Nt, Nslot, l);
 	theta.init();
-/*}}}*/
 
-	//print_theta(D, Ca, C, Pa, P, V, Vt);
 
-	//Training iterations/*{{{*/
+	//Training iterations
 	for (int k = 0;k < niter;k ++)
 	{
 		boost::timer::auto_cpu_timer ct("iteration takes %ws\n");
 		double eta = 5e-3 / (k + 1);
 
 		sgd(Dtr, a, S, eta, mode, J, theta);
-		//sgd(Dtr, a, S, Ca, C, Pa, P, V, Vt, J, eta, mode);
 	}
-/*}}}*/
+
 
 	if (vm.count("modelfile"))
 		theta.saves(vm["modelfile"].as<string>().c_str());
-		//save_model(vm["modelfile"].as<string>().c_str(), Ca, C, Pa, P, V, Vt);
 	return 0;
 }

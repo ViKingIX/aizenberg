@@ -84,7 +84,8 @@ int main(int argc, const char *argv[])
 	map<unsigned, unsigned> a;
 	vector<unsigned> S;
 	map<unsigned, vector<example> > D;
-	load_tsv(vm["logfile"].as<string>().c_str(), uids, artids, traids, a, S, D);
+	unsigned Ns, Na, Nt;
+	load_tsv(vm["logfile"].as<string>().c_str(), uids, artids, traids, a, S, D, Ns, Na, Nt);
 	vector<set<unsigned> > played(uids.size());
 	set<unsigned> Suni;
 	for (const auto &kv : D)

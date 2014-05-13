@@ -132,7 +132,7 @@ void Theta::dump() const/*{{{*/
 	return;
 }/*}}}*/
 
-bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, unsigned> &artids, map<string, unsigned> &traids, map<unsigned, unsigned> &a, vector<unsigned> &S, map<unsigned, vector<example> > &D)/*{{{*/
+bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, unsigned> &artids, map<string, unsigned> &traids, map<unsigned, unsigned> &a, vector<unsigned> &S, map<unsigned, vector<example> > &D, unsigned &Ns, unsigned &Na, unsigned &Nt)/*{{{*/
 {
 	boost::timer::auto_cpu_timer ct("load_tsv takes %ws\n");
 	const locale datetime_fmt(locale::classic(), new bt::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
@@ -187,5 +187,8 @@ bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, un
 		D[s].push_back(example(s, i, ai, t));
 	}
 	logfile.close();
+	Ns = uids.size();
+	Na = artids.size();
+	Nt = traids.size();
 	return true;
 }/*}}}*/

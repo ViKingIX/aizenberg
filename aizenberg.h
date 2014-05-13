@@ -32,7 +32,7 @@ struct Theta/*{{{*/
 	std::vector<std::vector<boost::numeric::ublas::vector<double> > > Vt;
 };/*}}}*/
 
-bool load_tsv(const char *logfilefn, std::map<std::string, unsigned> &uids, std::map<std::string, unsigned> &artids, std::map<std::string, unsigned> &traids, std::map<unsigned, unsigned> &a, std::vector<unsigned> &S, std::map<unsigned, std::vector<example> > &D);
+bool load_tsv(const char *logfilefn, std::map<std::string, unsigned> &uids, std::map<std::string, unsigned> &artids, std::map<std::string, unsigned> &traids, std::map<unsigned, unsigned> &a, std::vector<unsigned> &S, std::map<unsigned, std::vector<example> > &D, unsigned &Ns, unsigned &Na, unsigned &Nt);
 
 inline bool cmp_ts(time_t t1, time_t t2)/*{{{*/
 {
