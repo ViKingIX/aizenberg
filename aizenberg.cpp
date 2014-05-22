@@ -21,103 +21,120 @@ using namespace std;
 namespace ublas = boost::numeric::ublas;
 namespace bt = boost::posix_time;
 
-Theta::Theta(unsigned Ns, unsigned Na, unsigned Nt, unsigned Nslot, unsigned l) : Ns(Ns), Na(Na), Nt(Nt), Nslot(Nslot), l(l)/*{{{*/
+Theta::Theta(const std::map<string, unsigned> &uids, const std::map<string, unsigned> &artids, const std::map<string, unsigned> &traids, unsigned Nslot, unsigned l) : Nslot(Nslot), l(l)/*{{{*/
 {
-	Ca.resize(Na);
-	C.resize(Nt);
-	Pa.resize(Na);
-	for (int i = 0;i < Na;i ++)
-		Pa[i].resize(l);
-	P.resize(Nt);
-	for (int i = 0;i < Nt;i ++)
-		P[i].resize(l);
-	V.resize(Ns);
-	Vt.resize(Ns);
-	for (int i = 0;i < Ns;i ++)
+	unsigned i;
+	ublas::zero_vector<double> z(l);
+	for (const auto &kv : uids)
 	{
-		V[i].resize(l);
+		i = kv.second;
+		V[i] = z;
 		Vt[i].resize(Nslot);
 		for (int j = 0;j < Nslot;j ++)
-			Vt[i][j].resize(l);
+			Vt[i][j] = z;
+	}
+	for (const auto &kv : artids)
+	{
+		i = kv.second;
+		Ca[i] = 0;
+		Pa[i] = z;
+	}
+	for (const auto &kv : traids)
+	{
+		i = kv.second;
+		C[i] = 0;
+		P[i] = z;
 	}
 }/*}}}*/
 void Theta::init()/*{{{*/
 {
 	srand(time(NULL));
 #pragma omp parallel for
-	for (int i = 0;i < Nt;i ++)
+	for (auto &kv : C)
 	{
+		unsigned i = kv.first;
 		C[i] = 2 * (double)rand() / RAND_MAX - 1;
 		for (int j = 0;j < l;j ++)
 			P[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 	}
 #pragma omp parallel for
-	for (int i = 0;i < Na;i ++)
+	for (auto &kv : Ca)
 	{
+		unsigned i = kv.first;
 		Ca[i] = 2 * (double)rand() / RAND_MAX - 1;
 		for (int j = 0;j < l;j ++)
 			Pa[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 	}
 #pragma omp parallel for
-	for (int i = 0;i < Ns;i ++)
+	for (auto &kv : V)
+	{
+		unsigned i = kv.first;
 		for (int j = 0;j < l;j ++)
 		{
 			V[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 			for (int k = 0;k < Nslot;k ++)
 				Vt[i][k][j] = 2 * (double)rand() / RAND_MAX - 1;
 		}
+	}
 	return;
 }/*}}}*/
 void Theta::loads(const std::string &fn)/*{{{*/
 {
 	boost::timer::auto_cpu_timer ct("load theta takes %ws\n");
 	std::ifstream ifs(fn.c_str(), std::ios::in);
+	unsigned Ns, Na, Nt, x;
 
 	ifs >> Ns >> Na >> Nt >> Nslot >> l;
-	V.resize(Ns);
-	Vt.resize(Ns);
-	for (size_t i = 0;i < Ns;i ++)
-		Vt[i].resize(Nslot);
-	Pa.resize(Na);
-	P.resize(Nt);
 
-	ifs >> Ca >> C;
-	for (size_t i = 0;i < Na;i ++)
-		ifs >> Pa[i];
-	for (size_t i = 0;i < Nt;i ++)
-		ifs >> P[i];
-	for (size_t i = 0;i < Ns;i ++)
-		ifs >> V[i];
-	for (size_t i = 0;i < Ns;i ++)
-		for (size_t j = 0;j < Nslot;j ++)
-			ifs >> Vt[i][j];
+	for (int i = 0;i < Na;i ++)
+	{
+		ifs >> x;
+		ifs >> Ca[x] >> Pa[x];
+	}
+	for (int i = 0;i < Nt;i ++)
+	{
+		ifs >> x;
+		ifs >> C[x] >> P[x];
+	}
+	for (int i = 0;i < Ns;i ++)
+	{
+		ifs >> x;
+		ifs >> V[x];
+		Vt[x].resize(Nslot);
+		for (int j = 0;j < Nslot;j ++)
+			ifs >> Vt[x][j];
+	}
 	return;
 }/*}}}*/
-void Theta::saves(const std::string &fn) const/*{{{*/
+void Theta::saves(const string &fn) const/*{{{*/
 {
-	std::ofstream ofs(fn.c_str(), std::ios::out);
+	ofstream ofs(fn.c_str(), ios::out);
 
-	ofs << Ns << std::endl;
-	ofs << Na << std::endl;
-	ofs << Nt << std::endl;
-	ofs << Nslot << std::endl;
-	ofs << l << std::endl;
-	ofs << Ca << std::endl;
-	ofs << C << std::endl;
-	for (size_t i = 0;i < Na;i ++)
-		ofs << Pa[i] << std::endl;
-	for (size_t i = 0;i < Nt;i ++)
-		ofs << P[i] << std::endl;
-	for (size_t i = 0;i < Ns;i ++)
-		ofs << V[i] << std::endl;
-	for (size_t i = 0;i < Ns;i ++)
-		for (size_t j = 0;j < Nslot;j ++)
-			ofs << Vt[i][j] << std::endl;
+	ofs << V.size() << " " << Ca.size() << " " << C.size() << " " << Nslot << " " << l << endl;
+	for (auto &kv : Ca)
+	{
+		unsigned a = kv.first;
+		ofs << a << " " << Ca.find(a)->second << " " << Pa.find(a)->second << endl;
+	}
+	for (auto &kv : C)
+	{
+		unsigned i = kv.first;
+		ofs << i << " " << C.find(i)->second << " " << P.find(i)->second << endl;
+	}
+	for (auto &kv : V)
+	{
+		unsigned s = kv.first;
+		ofs << s << " " << V.find(s)->second;
+		for (int j = 0;j < Nslot;j ++)
+			ofs << " " << Vt.find(s)->second[j];
+		ofs << endl;
+	}
 	return;
 }/*}}}*/
 void Theta::dump() const/*{{{*/
 {
-	cout << "Ns = " << Ns << ", " << "Na = " << Na << ", " << "Nt = " << Nt << endl;
+	cout << "Ns = " << V.size() << ", " << "Na = " << Ca.size() << ", " << "Nt = " << C.size() << endl;
+#if 0
 	cout << Ca << endl;
 	cout << C << endl;
 	for (int i = 0;i < Pa.size();i ++)
@@ -129,10 +146,11 @@ void Theta::dump() const/*{{{*/
 	for (int i = 0;i < Vt.size();i ++)
 		for (int j = 0;j < Nslot;j ++)
 			cout << Vt[i][j] << endl;
+#endif
 	return;
 }/*}}}*/
 
-bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, unsigned> &artids, map<string, unsigned> &traids, map<unsigned, unsigned> &a, vector<unsigned> &S, map<unsigned, vector<example> > &D, unsigned &Ns, unsigned &Na, unsigned &Nt)/*{{{*/
+bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, unsigned> &artids, map<string, unsigned> &traids, map<unsigned, unsigned> &a, vector<unsigned> &S, map<unsigned, vector<example> > &D)/*{{{*/
 {
 	boost::timer::auto_cpu_timer ct("load_tsv takes %ws\n");
 	const locale datetime_fmt(locale::classic(), new bt::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
@@ -187,8 +205,5 @@ bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, un
 		D[s].push_back(example(s, i, ai, t));
 	}
 	logfile.close();
-	Ns = uids.size();
-	Na = artids.size();
-	Nt = traids.size();
 	return true;
 }/*}}}*/

@@ -19,20 +19,20 @@ struct example /*{{{*/
 
 struct Theta/*{{{*/
 {
-	Theta(unsigned Ns, unsigned Na, unsigned Nt, unsigned Nslot, unsigned l);
+	Theta(const std::map<std::string, unsigned> &uids, const std::map<std::string, unsigned> &artids, const std::map<std::string, unsigned> &traids, unsigned Nslot, unsigned l);
 	Theta(const std::string &fn) {loads(fn);}
 	void init();
 	void loads(const std::string &fn);
 	void saves(const std::string &fn) const;
 	void dump() const;
 
-	unsigned Ns, Na, Nt, Nslot, l;
-	boost::numeric::ublas::vector<double> Ca, C;
-	std::vector<boost::numeric::ublas::vector<double> > Pa, P, V;
-	std::vector<std::vector<boost::numeric::ublas::vector<double> > > Vt;
+	unsigned Nslot, l;
+	std::map<unsigned, double> Ca, C;
+	std::map<unsigned, boost::numeric::ublas::vector<double> > Pa, P, V;
+	std::map<unsigned, std::vector<boost::numeric::ublas::vector<double> > > Vt;
 };/*}}}*/
 
-bool load_tsv(const char *logfilefn, std::map<std::string, unsigned> &uids, std::map<std::string, unsigned> &artids, std::map<std::string, unsigned> &traids, std::map<unsigned, unsigned> &a, std::vector<unsigned> &S, std::map<unsigned, std::vector<example> > &D, unsigned &Ns, unsigned &Na, unsigned &Nt);
+bool load_tsv(const char *logfilefn, std::map<std::string, unsigned> &uids, std::map<std::string, unsigned> &artids, std::map<std::string, unsigned> &traids, std::map<unsigned, unsigned> &a, std::vector<unsigned> &S, std::map<unsigned, std::vector<example> > &D);
 
 inline bool cmp_ts(time_t t1, time_t t2)/*{{{*/
 {
