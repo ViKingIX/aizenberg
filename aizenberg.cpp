@@ -49,7 +49,6 @@ Theta::Theta(const std::map<string, unsigned> &uids, const std::map<string, unsi
 void Theta::init()/*{{{*/
 {
 	srand(time(NULL));
-#pragma omp parallel for
 	for (auto &kv : C)
 	{
 		unsigned i = kv.first;
@@ -57,7 +56,6 @@ void Theta::init()/*{{{*/
 		for (int j = 0;j < l;j ++)
 			P[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 	}
-#pragma omp parallel for
 	for (auto &kv : Ca)
 	{
 		unsigned i = kv.first;
@@ -65,7 +63,6 @@ void Theta::init()/*{{{*/
 		for (int j = 0;j < l;j ++)
 			Pa[i][j] = 2 * (double)rand() / RAND_MAX - 1;
 	}
-#pragma omp parallel for
 	for (auto &kv : V)
 	{
 		unsigned i = kv.first;
@@ -150,7 +147,7 @@ void Theta::dump() const/*{{{*/
 	return;
 }/*}}}*/
 
-bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, unsigned> &artids, map<string, unsigned> &traids, map<unsigned, unsigned> &a, vector<unsigned> &S, map<unsigned, vector<example> > &D)/*{{{*/
+bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, unsigned> &artids, map<string, unsigned> &traids, map<unsigned, unsigned> &a, map<unsigned, vector<example> > &D)/*{{{*/
 {
 	boost::timer::auto_cpu_timer ct("load_tsv takes %ws\n");
 	const locale datetime_fmt(locale::classic(), new bt::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
@@ -188,7 +185,6 @@ bool load_tsv(const char *logfilefn, map<string, unsigned> &uids, map<string, un
 		if (!traids.count(traid))
 			traids[traid] = traids.size() - 1;
 		unsigned i = traids[traid];
-		S.push_back(i);
 		a[i] = ai;
 
 		bt::ptime pt;

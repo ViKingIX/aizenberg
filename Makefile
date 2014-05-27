@@ -6,7 +6,7 @@
 APP = koren-train
 SRCs = koren-train.cpp koren-predict.cpp aizenberg.cpp
 OBJs = $(SRCs:.cpp=.o)
-CFLAGS = -DNDEBUG -DBOOST_UBLAS_NDEBUG -std=c++11# -g -DDEBUG
+CFLAGS = -DNDEBUG -DBOOST_UBLAS_NDEBUG -std=c++11 -fopenmp -O2
 LFLAGS = -lboost_program_options -lboost_timer -lboost_system -fopenmp
 
 all: koren-train koren-predict
@@ -20,18 +20,9 @@ koren-train: koren-train.o aizenberg.o
 koren-predict: koren-predict.o aizenberg.o
 	$(CXX) -o $@ $^ $(LFLAGS)
 
-run: koren-train
-	./koren-train ../dat_0.1.tsv model_0.1
-
-test: koren-train koren-predict
-	#./koren-train --iter 5 test.tsv model_test
-	./koren-predict test.tsv model_test
-
-train: koren-train
-	./koren-train ../dat_0.45.tsv model_0.45
-
-predict: koren-predict
-	./koren-predict ../dat_0.45.tsv model_0.45
+debug: koren-predict.cpp aizenberg.cpp koren-train.cpp
+	$(CXX) -o debug-train koren-train.cpp aizenberg.cpp -std=c++11 -g $(LFLAGS)
+	#$(CXX) -o debug-predict koren-predict.cpp aizenberg.cpp $(CFLAGS) -g $(LFLAGS)
 
 clean:
 	rm -f $(OBJs) $(APP)

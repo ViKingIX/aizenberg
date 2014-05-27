@@ -85,7 +85,8 @@ int main(int argc, const char *argv[])
 	vector<unsigned> S;
 	map<unsigned, vector<example> > D;
 	unsigned Ns, Na, Nt;
-	load_tsv(vm["logfile"].as<string>().c_str(), uids, artids, traids, a, S, D);
+	vector<unsigned> stations;
+	load_tsv(vm["logfile"].as<string>().c_str(), uids, artids, traids, a, D);
 	vector<set<unsigned> > played(uids.size());
 	set<unsigned> Suni;
 	for (const auto &kv : D)
@@ -94,9 +95,13 @@ int main(int argc, const char *argv[])
 		const vector<example> &Ps = kv.second;
 		unsigned len = std::ceil(Ps.size() * (1 - fraction));
 		for (auto it = Ps.begin();it != Ps.begin() + len;it ++)
+		{
 			played[s].insert(it->tra);
+			S.push_back(it->tra);
+		}
 		for (auto ex : Ps)
 			Suni.insert(ex.tra);
+		stations.push_back(s);
 	}
 
 	//load model
@@ -109,10 +114,11 @@ int main(int argc, const char *argv[])
 	unsigned Npu = 0, Nput = 0;	//stats for played item (uni)
 	unsigned Nnp = 0, Nnpt = 0;	//stats for non played item (pop)
 	unsigned Npp = 0, Nppt = 0;	//stats for played item (pop)
-	for (const auto &kv : D)
+#pragma omp parallel for reduction(+:Nnu) reduction(+:Nnut) reduction(+:Npu) reduction(+:Nput) reduction(+:Nnp) reduction(+:Nnpt) reduction(+:Npp) reduction(+:Nppt)
+	for (int x = 0;x < stations.size();x ++)
 	{
-		unsigned s = kv.first;
-		const vector<example> &Ps = kv.second;
+		unsigned s = stations[x];
+		const vector<example> &Ps = D.at(s);
 		unsigned len = std::ceil(Ps.size() * (1 - fraction));
 		vector<example> Pstw;
 		example ex = *(Ps.begin() + len);

@@ -32,11 +32,11 @@ struct Theta/*{{{*/
 	std::map<unsigned, std::vector<boost::numeric::ublas::vector<double> > > Vt;
 };/*}}}*/
 
-bool load_tsv(const char *logfilefn, std::map<std::string, unsigned> &uids, std::map<std::string, unsigned> &artids, std::map<std::string, unsigned> &traids, std::map<unsigned, unsigned> &a, std::vector<unsigned> &S, std::map<unsigned, std::vector<example> > &D);
+bool load_tsv(const char *logfilefn, std::map<std::string, unsigned> &uids, std::map<std::string, unsigned> &artids, std::map<std::string, unsigned> &traids, std::map<unsigned, unsigned> &a, std::map<unsigned, std::vector<example> > &D);
 
 inline bool cmp_ts(time_t t1, time_t t2)/*{{{*/
 {
-	return t1 % 86400 / 60 == t2 % 86400 / 60;
+	return (t1 % 86400 / 60) == (t2 % 86400 / 60);
 }/*}}}*/
 
 #endif /* !AIZENBERG_H */
