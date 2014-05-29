@@ -24,5 +24,8 @@ debug: koren-predict.cpp aizenberg.cpp koren-train.cpp
 	$(CXX) -o debug-train koren-train.cpp aizenberg.cpp -std=c++11 -g $(LFLAGS)
 	#$(CXX) -o debug-predict koren-predict.cpp aizenberg.cpp $(CFLAGS) -g $(LFLAGS)
 
+debug-train: koren-train.cpp aizenberg.cpp
+	$(CXX) -o debug-train koren-train.cpp aizenberg.cpp -std=c++11 -g $(LFLAGS)
+
 clean:
 	rm -f $(OBJs) $(APP)

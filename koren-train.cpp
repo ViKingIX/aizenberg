@@ -65,7 +65,7 @@ inline uvec vclip(uvec v, double low = vmin, double high = vmax)/*{{{*/
 	return v;
 }/*}}}*/
 
-void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned> &a, const vector<unsigned> &S, const map<unsigned, unsigned> &Scount, const vector<unsigned> &tras, double eta, string mode, vector<unsigned> &J, map<unsigned, unsigned> &Jcount, Theta &theta)/*{{{*/
+void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned> &a, const vector<unsigned> &S, const map<unsigned, unsigned> &Scount, const vector<unsigned> &tras, double eta, string mode, Theta &theta)/*{{{*/
 {
 	static vector<unsigned> random_s;
 	map<unsigned, double> &Ca = theta.Ca, &C = theta.C;
@@ -105,7 +105,7 @@ void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 						dPa[aj] = z;
 					if (!dP.count(j))
 						dP[j] = z;
-					qsum += Pa[aj] + P[j];
+					qsum += Pa.at(aj) + P.at(j);
 					it ++;
 				}
 
@@ -113,10 +113,10 @@ void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 			if (Pstw.size() > 0)
 				coeff = 1. / sqrt(Pstw.size());
 			unsigned ai = exi.art, i = exi.tra;
-			double bi = Ca[ai] + C[i];
-			uvec qi = Pa[ai] + P[i];
+			double bi = Ca.at(ai) + C.at(i);
+			uvec qi = Pa.at(ai) + P.at(i);
 			unsigned slot = exi.t % SEC_PER_DAY / SEC_PER_HOUR / Nslot;
-			uvec vterm = V[s] + Vt[s][slot] + coeff * qsum;
+			uvec vterm = V.at(s) + Vt.at(s).at(slot) + coeff * qsum;
 #ifdef DEBUG
 			cout << "bi: " << bi << endl;
 			cout << "qi: " << qi << endl;
@@ -218,32 +218,16 @@ void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 				boost::timer::auto_cpu_timer ct("importance sampling costs %ws\n");
 				double Jsum = 0, denom = 0;
 				map<unsigned, double> expr;
-				{
-					boost::timer::auto_cpu_timer ct("compute Jsum takes %ws\n");
-//#pragma omp parallel for reduction(+:denom) reduction(+:Jsum)
-				for (int x = 0;x < J.size();x ++)
-				{
-					unsigned j = J.at(x), aj = a.at(j);
-					double bj = Ca.at(aj) + C.at(j);
-					uvec qj = Pa.at(aj) + P.at(j);
-//#pragma omp critical
-					{
-						if (!expr.count(j))
-							expr[j] = exp(bj + inner_prod(qj, vterm));
-					}
-					denom += expr.at(j) * S.size() / Scount.at(j);
-					Jsum += expr.at(j);
-				}
-				}
+				vector<unsigned> J;
 				double expri = exp(bi + inner_prod(qi, vterm));
 				{
 					boost::timer::auto_cpu_timer ct("sampling takes %ws\n");
 				while (Jsum <= expri && J.size() < Jmaxlen)
 				{
 					unsigned x = rand() % S.size();
-					unsigned j = S[x], aj = a.at(j);
-					double bj = Ca[aj] + C[j];
-					uvec qj = Pa[aj] + P[j];
+					unsigned j = S.at(x), aj = a.at(j);
+					double bj = Ca.at(aj) + C.at(j);
+					uvec qj = Pa.at(aj) + P.at(j);
 					if (!expr.count(j))
 						expr[j] = exp(bj + inner_prod(qj, vterm));
 					//test exprj/*{{{*/
@@ -272,8 +256,8 @@ void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 						continue;
 					}/*}}}*/
 					denom += expr[j] * S.size() / Scount.at(j);
-					Jsum += expr[j];
-					J.push_back(S[x]);
+					Jsum += expr.at(j);
+					J.push_back(j);
 				}
 				}
 				{
@@ -281,8 +265,16 @@ void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 				for (unsigned j : J)
 				{
 					unsigned aj = a.at(j);
-					double coeff2 = -eta * expr[j] * S.size() / Scount.at(j) / denom;
-					uvec qj = P[j] + Pa[aj];
+					double coeff2 = -eta * expr.at(j) * S.size() / Scount.at(j) / denom;
+					if (std::isnan(coeff2))/*{{{*/
+					{
+						cerr << "NaN coeff2!\n";
+						cerr << "eta: " << eta << endl;
+						cerr << "exprj: " << expr[j] << endl;
+					cerr << "denom: " << denom << endl;
+						continue;
+					}/*}}}*/
+					uvec qj = P.at(j) + Pa.at(aj);
 					if (!dCa.count(aj))
 						dCa[aj] = 0;
 					if (!dC.count(j))
@@ -365,137 +357,6 @@ void sgd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned>
 			Pstw.push_back(exi);
 		}
 	}
-	return;
-}/*}}}*/
-
-struct delta
-{
-	map<unsigned, double> dCa, dC;
-	map<unsigned, uvec> dPa, dP, dV;
-	map<unsigned, vector<uvec> > dVt;
-};
-
-delta gd_body(unsigned tid, unsigned s, const vector<example> &Ps, const Theta &theta)
-{
-	delta d;
-	return d;
-}
-
-void gd(const map<unsigned, vector<example> > &D, const map<unsigned, unsigned> &a, const vector<unsigned> &S, const vector<unsigned> &Scount, double eta, string mode, map<unsigned, vector<example> > &J, Theta &theta)/*{{{*/
-{
-	vector<delta> Delta(nproc);
-	map<unsigned, double> &Ca = theta.Ca, C = theta.C;
-	map<unsigned, uvec> &Pa = theta.Pa, P = theta.P, V = theta.V;
-	map<unsigned, vector<uvec> > &Vt = theta.Vt;
-	ublas::zero_vector<double> z(theta.l);
-#pragma omp parallel for num_threads(nproc)
-	for (int x = 0;x < stations.size();x ++)
-	{
-		unsigned tid = omp_get_thread_num();
-		unsigned s = stations[x];
-		const vector<example> &Ps = D.at(s);
-		vector<example> Pstw;
-		map<unsigned, double> &dCa = Delta[tid].dCa, &dC = Delta[tid].dC;
-		map<unsigned, uvec> &dPa = Delta[tid].dPa, &dP = Delta[tid].dP, &dV = Delta[tid].dV;
-		map<unsigned, vector<uvec> > &dVt = Delta[tid].dVt;
-		for (const auto &exi : Ps)
-		{
-			uvec qsum = z;
-			for (auto it = Pstw.begin();it != Pstw.end();)
-			{
-				const example &exj = *it;
-				unsigned aj = it->art, j = it->tra;
-				if (exj.t < exi.t && exi.t - exj.t < w)
-				{
-					if (!dPa.count(aj))
-						dPa[aj] = z;
-					if (!dP.count(j))
-						dP[j] = z;
-					qsum += P.at(j) + Pa.at(aj);
-					it++;
-				}
-				else
-					it = Pstw.erase(it);
-			}
-			unsigned ai = exi.art, i = exi.tra;
-			uvec qi = P.at(i) + Pa.at(ai);
-			double coeff = 0;
-			if (Pstw.size() > 0)
-				coeff = 1. / Pstw.size();
-			unsigned slot = exi.t % 86400 / 60 / 60 / Nslot;
-			uvec vterm = V.at(s) + Vt.at(s)[slot] + coeff * qsum;
-			if (!dCa.count(ai))
-				dCa[ai] = 0;
-			if (!dC.count(i))
-				dC[i] = 0;
-			if (!dPa.count(ai))
-				dPa[ai] = z;
-			if (!dP.count(i))
-				dP[i] = z;
-			if (!dV.count(s))
-				dV[s] = z;
-			if (!dVt.count(s))
-				dVt[s] = vector<uvec>(Nslot, z);
-			dCa[ai] += 1;
-			dC[i] += 1;
-			dPa[ai] += vterm;
-			dP[i] += vterm;
-			dV[s] += qi;
-			dVt[s][slot] += qi;
-			for (const auto &exj : Pstw)
-			{
-				unsigned aj = exj.art, j = exj.tra;
-				if (!dPa.count(aj))
-					dPa[aj] = z;
-				if (!dP.count(j))
-					dP[j] = z;
-				dPa[aj] += coeff * qi;
-				dP[j] += coeff * qi;
-			}
-
-			map<unsigned, double> expr;
-			double denom = 0, Jsum = 0;
-			vector<unsigned> J;
-			for (int x = 0;x < 128;x ++)
-				J.push_back(S.at(rand() % S.size()));
-			for (unsigned j : J)
-			{
-				unsigned aj = a.at(j);
-				double bj = C[j] + Ca[aj];
-				uvec qj = P[j] + Pa[aj];
-				if (!expr.count(j))
-					expr[j] = exp(bj + inner_prod(qj, vterm));
-				denom += expr[j] * S.size() / Scount.at(j);
-			}
-			for (unsigned j : J)
-			{
-				unsigned aj = a.at(j);
-				double coeff2 = -expr[j] * S.size() / Scount.at(j) / denom;
-				uvec qj = P[j] + Pa[j];
-				if (!dCa.count(aj))
-					dCa[aj] = 0;
-				if (!dC.count(j))
-					dC[j] = 0;
-				if (!dPa.count(aj))
-					dPa[aj] = z;
-				if (!dP.count(j))
-					dP[j] = z;
-				dCa[aj] += coeff2;
-				dC[j] += coeff2;
-				dPa[aj] += coeff2 * vterm;
-				dP[j] += coeff2 * vterm;
-				for (const auto &exk : Pstw)
-				{
-					unsigned ak = exk.art, k = exk.tra;
-					dPa[ak] += coeff2 * qj;
-					dP[k] += coeff2 * qj;
-				}
-			}
-			
-			Pstw.push_back(exi);
-		}
-	}
-	for (const auto &d : Delta)
 	return;
 }/*}}}*/
 
@@ -644,8 +505,6 @@ int main(int argc, const char *argv[])
 	//Initialize parameters
 	Theta theta(uids, artids, traids, Nslot, l);
 	theta.init();
-	vector<unsigned> J;
-	map<unsigned, unsigned> Jcount;
 
 	//Training iterations
 	unsigned k = 0;
@@ -657,8 +516,8 @@ int main(int argc, const char *argv[])
 		if (vm.count("eta"))
 			eta = vm["eta"].as<double>();
 
-		sgd(Dtr, a, S, Scount, tras, eta, mode, J, Jcount, theta);
-		if (vm["oiter"].as<bool>() || vm.count("modelfile"))
+		sgd(Dtr, a, S, Scount, tras, eta, mode, theta);
+		if (vm["oiter"].as<bool>() && vm.count("modelfile"))
 		{
 			ostringstream oss;
 			oss << vm["modelfile"].as<string>() << ".iter." << k + 1;
